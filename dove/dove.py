@@ -7,6 +7,7 @@ import json
 from typing import Dict, List
 import time
 from datetime import datetime
+import yaml
 
 HOME_DIR = path.expanduser("~")
 DEFAULT_CONFIG = path.join(HOME_DIR, ".dove_config.json")
@@ -250,6 +251,17 @@ def _try_get(parsed_config: Dict[any, any], key: any) -> any:
         click.secho(f"Key {key} not found", fg="red")
         sys.exit(1)
     return parsed_config[key]
+
+
+def get_token_from_doctl_config_file(context=None):
+    config_file = path.join(HOME_DIR, ".config", "doctl", "config.yaml")
+    token = None
+    if path.exists(config_file):
+        with open(config_file, "r") as stream:
+            doctl_config = yaml.safe_load(stream)
+            token = doctl_config.get('access-token', None) if not context \
+                else doctl_config.get('auth-contexts', {}).get(context)
+    return token
 
 
 if __name__ == "__main__":
