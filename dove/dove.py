@@ -28,8 +28,13 @@ def cli():
     default=DEFAULT_CONFIG,
     help=f"The location of the config file. Defaults to {DEFAULT_CONFIG}",
 )
-def init(config: str):
-    token = click.prompt("Enter your access token", hide_input=True, type=str)
+@click.option(
+    "--context",
+    help=f"DigitalOcean authentication context name to use",
+)
+def init(config: str, context: str):
+    doctl_token = get_token_from_doctl_config_file(context)
+    token = doctl_token or click.prompt("Enter your access token", hide_input=True, type=str)
     region = click.prompt(
         "Enter the region you'd like to use for your droplet", type=str, default="nyc1"
     )
@@ -51,7 +56,6 @@ def init(config: str):
     ssh_keys = [s.strip() for s in ssh_raw.split(",")]
 
     dove_config = {
-        "token": token,
         "droplet": {
             "region": region,
             "size": size,
@@ -67,6 +71,9 @@ def init(config: str):
         "snapshot_prefix": snapshot_prefix,
     }
 
+    if not doctl_token:
+        dove_config['token'] = token
+
     with open(config, "w") as f:
         data = json.dumps(dove_config, indent=2)
         f.write(data)
@@ -80,9 +87,14 @@ def init(config: str):
     default=DEFAULT_CONFIG,
     help=f"The location of the config file. Defaults to {DEFAULT_CONFIG}",
 )
-def up(config: str):
+@click.option(
+    "--context",
+    help=f"DigitalOcean authentication context name to use",
+)
+def up(config: str, context: str):
     parsed_config = _load_config(config)
-    manager = digitalocean.Manager(token=parsed_config["token"])
+    token = parsed_config.get("token", get_token_from_doctl_config_file(context))
+    manager = digitalocean.Manager(token=token)
 
     # Check for already running server
     droplet_config = _try_get(parsed_config, "droplet")
@@ -147,9 +159,13 @@ def up(config: str):
     default=DEFAULT_CONFIG,
     help=f"The location of the config file. Defaults to {DEFAULT_CONFIG}",
 )
-def status(name: str, config: str = DEFAULT_CONFIG):
+@click.option(
+    "--context",
+    help=f"DigitalOcean authentication context name to use",
+)
+def status(name: str, config: str = DEFAULT_CONFIG, context: str = None):
     parsed_config = _load_config(config)
-    token = _try_get(parsed_config, "token")
+    token = parsed_config.get("token", get_token_from_doctl_config_file(context))
     manager = digitalocean.Manager(token=token)
 
     name = name or _try_get(parsed_config, "droplet")["name"]
@@ -166,9 +182,13 @@ def status(name: str, config: str = DEFAULT_CONFIG):
     default=DEFAULT_CONFIG,
     help=f"The location of the config file. Defaults to {DEFAULT_CONFIG}",
 )
-def down(config: str = DEFAULT_CONFIG):
+@click.option(
+    "--context",
+    help=f"DigitalOcean authentication context name to use",
+)
+def down(config: str = DEFAULT_CONFIG, context: str = None):
     parsed_config = _load_config(config)
-    token = _try_get(parsed_config, "token")
+    token = parsed_config.get("token", get_token_from_doctl_config_file(context))
     manager = digitalocean.Manager(token=token)
 
     droplet_name = _try_get(parsed_config, "droplet")["name"]
